@@ -1,10 +1,8 @@
 {
   "name": "tonpulse-miner",
   "version": "1.0.0",
-  "description": "TONPulse Miner Backend",
-  "main": "api/sync.js",
   "dependencies": {
-    "mongodb": "^6.5.0"
+    "firebase": "^10.0.0"
   },
   "engines": {
     "node": "20.x"
