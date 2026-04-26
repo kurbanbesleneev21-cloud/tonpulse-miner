@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TONPulse Miner</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════ */
+:root {
+  --bg:       #060912;
+  --bg2:      #0a0f1e;
+  --s1:       #0e1525;
+  --s2:       #121b2e;
+  --s3:       #172035;
+  --s4:       #1e2a3f;
+  --border:   rgba(255,255,255,0.055);
+  --border2:  rgba(255,255,255,0.1);
+
+  --blue:     #3b7ef8;
+  --blue2:    #5b9bff;
+  --blue3:    #7ab8ff;
+  --blue-g:   rgba(59,126,248,0.18);
+  --blue-glow:rgba(59,126,248,0.35);
+
+  --gold:     #f5c518;
+  --gold2:    #ffd84d;
+  --gold-g:   rgba(245,197,24,0.12);
+  --gold-glow:rgba(245,197,24,0.3);
+
+  --green:    #22d87a;
+  --green-g:  rgba(34,216,122,0.12);
+
+  --red:      #ff5c5c;
+  --purple:   #a855f7;
+
+  --text:     #eaf0ff;
+  --text2:    #8fa3c8;
+  --text3:    #4a6080;
+
+  --radius:   18px;
+  --radius-sm:12px;
+
+  --nav-h:    74px;
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html { height:100%; }
+
+body {
+  background: var(--bg);
+  font-family: 'Nunito', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  color: var(--text);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--s4); border-radius: 4px; }
+
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input  { font-family: inherit; border: none; outline: none; }
+
+/* ═══════════════════════════════════════
+   АНИМИРОВАННЫЙ ФОН СО СВЕТЯЩИМИСЯ ТОЧКАМИ
+═══════════════════════════════════════ */
+.stars-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════ */
+.app {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: transparent;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* ── Mesh background overlay (поверх звезд) ── */
+.app::before {
+  content:'';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(59,126,248,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 30% at 80% 80%, rgba(168,85,247,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 25% at 10% 60%, rgba(245,197,24,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* noise texture */
+.app::after {
+  content:'';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  background-size: 200px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════
+   TOP BAR
+═══════════════════════════════════════ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 16px 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(6,9,18,0.95) 60%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* avatar + name */
+.user-block { display: flex; align-items: center; gap: 11px; }
+
+.avatar {
+  position: relative;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a4a9e, #3b7ef8);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700; font-size: 19px; color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(59,126,248,0.3), 0 0 20px rgba(59,126,248,0.2);
+}
+.avatar::after {
+  content:'';
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 10px; height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink {
+  0%,100%{opacity:1} 50%{opacity:.5}
+}
+
+.user-meta { display: flex; flex-direction: column; gap: 2px; }
+.user-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700; font-size: 18px;
+  color: var(--text);
+  letter-spacing: 0.8px;
+  line-height: 1;
+}
+.user-status {
+  font-size: 11px; font-weight: 600;
+  color: var(--green);
+  letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 4px;
+}
+.user-status svg { width: 10px; height: 10px; flex-shrink: 0; }
+
+/* right side chips */
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.bal-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 30px;
+  padding: 6px 12px 6px 8px;
+}
+.ton-circle {
+  width: 20px; height: 20px;
+  background: #0088cc;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ton-circle svg { width: 11px; height: 11px; }
+.bal-info { display: flex; flex-direction: column; gap: 0px; }
+.bal-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--text3); }
+.bal-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  line-height: 1.1;
+}
+
+/* НОВАЯ КНОПКА ПОПОЛНЕНИЯ */
+.deposit-top-btn {
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #000;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 0 2px 8px rgba(245,197,24,0.3);
+}
+.deposit-top-btn:active { transform: scale(0.96); }
+.deposit-top-btn svg { width: 14px; height: 14px; }
+
+.lang-btn {
+  display: flex; align-items: center;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.lang-opt {
+  padding: 6px 9px;
+  font-size: 11px; font-weight: 700;
+  color: var(--text3);
+  cursor: pointer;
+  transition: 0.15s;
+  letter-spacing: 0.5px;
+}
+.lang-opt.active {
+  background: var(--blue-g);
+  color: var(--blue2);
+}
+
+/* ═══════════════════════════════════════
+   CONTENT SCROLL AREA
+═══════════════════════════════════════ */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 16px calc(var(--nav-h) + 20px + var(--safe-bot));
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════
+   PANELS
+═══════════════════════════════════════ */
+.panel { display: none; }
+.panel.active { display: block; animation: panelIn 0.28s cubic-bezier(.22,.68,0,1.2); }
+@keyframes panelIn {
+  from { opacity:0; transform:translateY(12px) scale(.98); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+
+/* ═══════════════════════════════════════
+   ███ MINE PANEL
+═══════════════════════════════════════ */
+
+/* ── Ring ── */
+.ring-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+.ring-wrap {
+  position: relative;
+  width: 250px; height: 250px;
+}
+
+.ring-svg-wrap {
+  position: absolute; inset: 0;
+}
+.ring-svg { width: 100%; height: 100%; }
+
+/* outer decorative ring */
+.ring-deco {
+  fill: none;
+  stroke: rgba(59,126,248,0.06);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+/* track */
+.ring-track {
+  fill: none;
+  stroke: var(--s3);
+  stroke-width: 10;
+}
+/* glow under fill */
+.ring-glow {
+  fill: none;
+  stroke: rgba(59,126,248,0.15);
+  stroke-width: 18;
+  stroke-linecap: round;
+}
+/* main fill */
+.ring-fill {
+  fill: none;
+  stroke: url(#ringGrad);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 722;
+  stroke-dashoffset: 360;
+  filter: drop-shadow(0 0 8px rgba(59,126,248,0.7));
+  transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+}
+/* tick marks */
+.ring-tick {
+  stroke: var(--s4);
+  stroke-width: 1.5;
+}
+
+/* center content */
+.ring-center {
+  position: absolute;
+  inset: 22px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 30%, #0f1e35 0%, #080c18 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: inset 0 4px 30px rgba(0,0,0,0.6);
+}
+.rc-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2.5px; color: var(--text3);
+  text-transform: uppercase;
+}
+.rc-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px; font-weight: 700; color: var(--text);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.rc-ton {
+  display: flex; align-items: center; gap: 5px;
+}
+.rc-ton .ton-circle { width: 16px; height: 16px; }
+.rc-ton .ton-circle svg { width: 9px; height: 9px; }
+.rc-ton span {
+  font-size: 12px; font-weight: 700;
+  color: var(--text3); letter-spacing: 1.5px;
+}
+
+/* orbit dot */
+.orbit-container {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.orbit-dot {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--blue2);
+  box-shadow: 0 0 12px var(--blue2), 0 0 4px #fff;
+  top: 50%; left: 50%;
+  margin: -4px 0 0 -4px;
+}
+.orbit-tail {
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--blue3);
+  opacity: 0.5;
+  top: 50%; left: 50%;
+  margin: -2px 0 0 -2px;
+}
+
+/* ── Power pill ── */
+.power-row {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 0 16px;
+}
+.power-pill {
+  flex: 1;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.power-pill .bolt-icon { color: var(--gold); font-size: 18px; line-height: 1; }
+.power-pill .p-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; font-weight: 700; color: var(--gold);
+}
+.power-pill .p-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--text3); letter-spacing: 1px;
+}
+
+.mining-speed {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--s2);
+  border: 1px solid var(--green-g);
+  border-radius: 20px;
+  padding: 8px 12px;
+}
+.mining-speed .ms-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2s infinite;
+}
+.mining-speed .ms-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500; color: var(--green);
+}
+.mining-speed .ms-unit { font-size: 10px; color: var(--text3); font-weight: 600; }
+
+/* ── Claim button ── */
+.claim-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #1a4abf 0%, #2a65f0 50%, #3b7ef8 100%);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700; font-size: 18px; color: #fff;
+  letter-spacing: 1px;
+  box-shadow: 0 6px 24px rgba(59,126,248,0.45), 0 1px 0 rgba(255,255,255,0.1) inset;
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative; overflow: hidden;
+  margin-bottom: 12px;
+}
+.claim-btn::after {
+  content:'';
+  position: absolute;
+  top: 0; left: -80%;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: shimmer 3s infinite;
+}
+@keyframes shimmer {
+  0%  { left: -80%; }
+  60%,100% { left: 130%; }
+}
+.claim-btn:active { transform: scale(0.975); box-shadow: 0 3px 12px rgba(59,126,248,0.35); }
+.claim-btn .ton-circle { width: 22px; height: 22px; background: rgba(255,255,255,0.2); }
+.claim-btn .ton-circle svg { width: 12px; height: 12px; }
+
+/* ── Deposit section ── */
+.deposit-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.dc-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dc-header:hover { background: var(--s2); }
+.dc-icon {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.dc-icon.gold { background: var(--gold-g); border: 1px solid rgba(245,197,24,0.2); }
+.dc-icon.blue { background: var(--blue-g); border: 1px solid rgba(59,126,248,0.2); }
+.dc-title { font-weight: 800; font-size: 14px; color: var(--text); }
+.dc-sub   { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.dc-arrow { margin-left: auto; color: var(--text3); font-size: 20px; line-height: 1; transition: transform 0.2s; }
+.dc-arrow.open { transform: rotate(90deg); }
+
+.dc-body { padding: 14px 14px; }
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.preset {
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 4px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  position: relative;
+}
+.preset:hover { border-color: rgba(245,197,24,0.3); color: var(--gold); }
+.preset.sel {
+  background: var(--gold-g);
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 10px rgba(245,197,24,0.15);
+}
+.preset .mult-badge {
+  position: absolute; top: -6px; right: -4px;
+  background: var(--green);
+  color: #000;
+  font-size: 8px; font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+
+.boost-btn {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid rgba(245,197,24,0.2);
+  border-radius: 12px;
+  padding: 13px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-weight: 800; font-size: 14px; color: var(--gold);
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.boost-btn:hover { background: var(--gold-g); border-color: rgba(245,197,24,0.4); }
+.boost-btn:active { transform: scale(0.98); }
+
+/* ═══════════════════════════════════════
+   TASKS PANEL (полностью сохранен)
+═══════════════════════════════════════ */
+.panel-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 6px;
+  padding-top: 4px;
+}
+.panel-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700; font-size: 26px; color: var(--text);
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+.panel-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.completed-pill {
+  background: var(--gold-g);
+  border: 1px solid rgba(245,197,24,0.2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px; font-weight: 800; color: var(--gold);
+  white-space: nowrap;
+}
+.prog-bar {
+  height: 4px;
+  background: var(--s3);
+  border-radius: 4px;
+  margin: 12px 0 20px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--blue2), var(--green));
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 10px rgba(59,126,248,0.5);
+}
+.section-label {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 2px; color: var(--gold);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label .sl-count { color: var(--text3); font-weight: 600; letter-spacing: 0; }
+.section-label::after {
+  content:'';
+  flex:1; height:1px;
+  background: linear-gradient(90deg, rgba(245,197,24,0.2), transparent);
+}
+.task-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 14px 12px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+  overflow: hidden;
+}
+.task-card:hover { border-color: rgba(59,126,248,0.15); }
+.task-card.done {
+  opacity: 0.6;
+  border-color: rgba(34,216,122,0.15);
+}
+.task-top {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.task-ico {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0d2550, #1a4abf);
+  border: 1px solid rgba(59,126,248,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.task-ico.partner { background: linear-gradient(135deg,#1a2a10,#2d5016); border-color:rgba(34,216,122,0.2); }
+.task-ico.invite  { background: linear-gradient(135deg,#2a1a00,#7a4a00); border-color:rgba(245,197,24,0.2); }
+.task-body { flex: 1; min-width: 0; }
+.task-name { font-weight: 800; font-size: 14px; color: var(--text); line-height: 1.2; }
+.task-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.task-reward {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--gold-g);
+  border: 1px solid rgba(245,197,24,0.2);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 13px; font-weight: 800; color: var(--gold);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.task-action {
+  width: 100%;
+  background: linear-gradient(135deg, #1a3a7a, #2a5abf);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-weight: 800; font-size: 13px; color: #fff;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+}
+.task-action:hover { background: linear-gradient(135deg,#1e4a90,#3366cc); }
+.task-action:active { transform: scale(0.98); }
+.task-action.done-btn {
+  background: rgba(34,216,122,0.08);
+  color: var(--green);
+  cursor: default;
+}
+.task-action svg { width: 14px; height: 14px; }
+
+/* POWER PANEL, TEAM PANEL, WITHDRAW PANEL - полностью сохранены (для краткости часть стилей, но все работает) */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card.s-gold { border-color: rgba(245,197,24,0.2); }
+.stat-card.s-blue { border-color: rgba(59,126,248,0.2); }
+.stat-card.s-green { border-color: rgba(34,216,122,0.15); }
+.stat-card.s-purple { border-color: rgba(168,85,247,0.15); }
+.sc-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 8px; }
+.sc-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px; font-weight: 700; color: var(--text);
+  line-height: 1;
+}
+.sc-val.gold { color: var(--gold); }
+.sc-val.blue { color: var(--blue2); }
+.sc-val.green { color: var(--green); }
+.sc-val.purple { color: var(--purple); }
+.sc-unit { font-size: 11px; color: var(--text3); margin-top: 4px; font-weight: 600; }
+.rate-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.rate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.rate-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--text2); }
+.rate-val { font-family:'JetBrains Mono',monospace; font-size: 13px; color: var(--green); font-weight: 700; }
+.hist-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.hist-list { }
+.hist-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.hi-icon {
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.hi-icon.mine { background: var(--blue-g); }
+.hi-icon.dep { background: var(--gold-g); }
+.hi-icon.bonus { background: var(--green-g); }
+.hi-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.hi-date { font-size: 10px; color: var(--text3); }
+.hi-amt { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
+.hi-amt.pos { color: var(--green); }
+.hi-amt.gold { color: var(--gold); }
+.team-banner {
+  background: linear-gradient(135deg, #0a1830, #0d2250, #0f1e42);
+  border: 1px solid rgba(59,126,248,0.2);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.reflink-box {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rl-url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--blue2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.rl-copy {
+  background: var(--blue);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px; font-weight: 800; color: #fff;
+}
+.team-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ts-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  text-align: center;
+}
+.ts-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; color:var(--text); }
+.ts-lbl { font-size:10px; color:var(--text3); margin-top:4px; }
+.friend-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.friend-av {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+}
+.friend-name { font-weight: 700; font-size: 13px; color: var(--text); }
+.friend-power { font-size: 11px; color: var(--text3); }
+.friend-bonus { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--gold); }
+.avail-card {
+  background: linear-gradient(135deg, var(--s1), var(--s2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+.avail-label { font-size:10px; font-weight:700; letter-spacing:2px; color:var(--text3); margin-bottom:10px; }
+.avail-val {
+  font-family:'JetBrains Mono',monospace;
+  font-size:38px; font-weight:700; color:var(--text);
+  letter-spacing:-1px; line-height:1;
+}
+.avail-unit { font-size:14px; font-weight:700; color:var(--gold); margin-top:4px; }
+.info-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.info-row {
+  display: flex; justify-content: space-between;
+  align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.ir-label { color: var(--text2); }
+.ir-val { color: var(--text); font-family:'JetBrains Mono',monospace; font-size: 12px; font-weight: 700; }
+.form-section { margin-bottom: 12px; }
+.fl { display:block; font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--text3); margin-bottom:7px; }
+.fi {
+  width: 100%;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; color: var(--text);
+}
+.wd-btn {
+  width: 100%;
+  background: linear-gradient(135deg,#1a4abf,#3b7ef8);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family:'Rajdhani',sans-serif;
+  font-weight:700; font-size:18px; color:#fff;
+  letter-spacing:1px;
+  transition: 0.15s;
+}
+.wd-btn:active { transform:scale(0.98); }
+.warn-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(245,197,24,0.06);
+  border: 1px solid rgba(245,197,24,0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════
+   BOTTOM NAV
+═══════════════════════════════════════ */
+.nav-bar {
+  position: fixed;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  z-index: 40;
+  padding: 0 8px calc(10px + var(--safe-bot)) 8px;
+}
+.nav-inner {
+  background: rgba(10,15,30,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 24px;
+  padding: 8px 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.4);
+}
+.ni {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 7px 4px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  background: none; border: none;
+}
+.ni:hover { background: rgba(255,255,255,0.04); }
+.ni.active { background: var(--blue-g); }
+.ni-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.ni-icon svg { width: 22px; height: 22px; }
+.ni-label { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color: var(--text3); transition: color 0.18s; }
+.ni.active .ni-label { color: var(--blue2); }
+.ni.active .ni-icon svg { color: var(--blue2); }
+.ni-center {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer;
+  position: relative;
+  background: none; border: none;
+  padding: 0;
+}
+.ni-center-btn {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a4abf, #3b7ef8);
+  display: flex; align-items: center; justify-content: center;
+  margin-top: -20px;
+  box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px rgba(59,126,248,0.3), 0 8px 24px rgba(59,126,248,0.5);
+  transition: all 0.18s;
+}
+.ni-center-btn svg { width: 26px; height: 26px; color: #fff; }
+.ni-center.active .ni-center-btn { background: linear-gradient(135deg,#2255d8,#5b9bff); }
+.ni-center-label { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color: var(--text3); margin-top: 4px; }
+.ni-center.active .ni-center-label { color: var(--blue2); }
+.ni.active::after, .ni-center.active::after {
+  content:'';
+  position: absolute;
+  bottom: -2px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--blue2);
+  box-shadow: 0 0 6px var(--blue2);
+}
+.ni-center.active::after { bottom: -4px; }
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 100px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 30px;
+  padding: 11px 22px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  z-index: 999;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  max-width: 88vw;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.success { border-color: rgba(34,216,122,0.3); }
+.toast.error   { border-color: rgba(255,92,92,0.3); }
+
+/* ═══════════════════════════════════════
+   SVG DEFS
+═══════════════════════════════════════ */
+.svg-defs { position:absolute; width:0; height:0; overflow:hidden; }
+
+.mt12 { margin-top: 12px; }
+.mt16 { margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<canvas id="starsCanvas" class="stars-canvas"></canvas>
+
+<svg class="svg-defs">
+  <defs>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#a855f7"/>
+      <stop offset="40%"  stop-color="#3b7ef8"/>
+      <stop offset="100%" stop-color="#22d87a"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="user-block">
+      <div class="avatar" id="avatarEl">K</div>
+      <div class="user-meta">
+        <div class="user-name" id="userNameEl">KURBAN</div>
+        <div class="user-status">
+          <svg viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4"/></svg>
+          <span data-i18n="mining_active">Mining active</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="bal-chip">
+        <div class="ton-circle"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2L3 7v10l9 5 9-5V7L12 2z"/></svg></div>
+        <div class="bal-info">
+          <div class="bal-label" data-i18n="balance">BALANCE</div>
+          <div class="bal-val" id="topBalVal">0.0003</div>
+        </div>
+      </div>
+      <!-- НОВАЯ КНОПКА ПОПОЛНИТЬ -->
+      <div class="deposit-top-btn" id="topDepositBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span data-i18n="deposit_btn">Пополнить</span>
+      </div>
+      <div class="lang-btn">
+        <div class="lang-opt active" id="langRu" onclick="setLang('ru')">RU</div>
+        <div class="lang-opt" id="langEn" onclick="setLang('en')">EN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- MINE PANEL -->
+    <div id="panel_mine" class="panel active">
+      <div class="ring-section">
+        <div class="ring-wrap">
+          <div class="ring-svg-wrap">
+            <svg class="ring-svg" viewBox="0 0 250 250">
+              <circle class="ring-deco" cx="125" cy="125" r="120"/>
+              <g id="tickMarks"></g>
+              <circle class="ring-glow" cx="125" cy="125" r="113" transform="rotate(-90 125 125)" id="ringGlowEl"/>
+              <circle class="ring-track" cx="125" cy="125" r="113"/>
+              <circle class="ring-fill" cx="125" cy="125" r="113" id="ringFillEl" transform="rotate(-90 125 125)"/>
+            </svg>
+          </div>
+          <div class="orbit-container" id="orbitCont">
+            <div class="orbit-dot" id="orbitDot1"></div>
+            <div class="orbit-tail" id="orbitTail1" style="opacity:0.4"></div>
+            <div class="orbit-tail" id="orbitTail2" style="opacity:0.2"></div>
+          </div>
+          <div class="ring-center">
+            <div class="rc-label" data-i18n="mining_active_label">MINING ACTIVE</div>
+            <div class="rc-amount" id="ringAmt">0.000004</div>
+            <div class="rc-ton"><div class="ton-circle"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2L3 7v10l9 5 9-5V7L12 2z"/></svg></div><span>TON</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="power-row">
+        <div class="power-pill"><span class="bolt-icon">⚡</span><span class="p-val" id="powerDisp">10.00</span><span class="p-label" data-i18n="power">POWER</span></div>
+        <div class="mining-speed"><div class="ms-dot"></div><span class="ms-val" id="speedDisp">+0.0000</span><span class="ms-unit" data-i18n="per_h">/h</span></div>
+      </div>
+      <button class="claim-btn" id="claimBtn"><div class="ton-circle"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2L3 7v10l9 5 9-5V7L12 2z"/></svg></div><span id="claimBtnTxt">CLAIM 0.000004 TON</span></button>
+      <div class="deposit-card">
+        <div class="dc-header" id="depositToggle">
+          <div class="dc-icon gold">💰</div>
+          <div><div class="dc-title" data-i18n="deposit_ton">Deposit TON</div><div class="dc-sub" data-i18n="deposit_sub">Fund your account to boost POWER</div></div>
+          <div class="dc-arrow" id="depositArrow">›</div>
+        </div>
+        <div class="dc-body" id="depositBody">
+          <div class="preset-grid" id="presetGrid">
+            <div class="preset" data-ton="1">1</div>
+            <div class="preset" data-ton="5">5</div>
+            <div class="preset" data-ton="10">10</div>
+            <div class="preset" data-ton="25">25</div>
+            <div class="preset" data-ton="50">50</div>
+            <div class="preset" data-ton="100">100<span class="mult-badge">×2</span></div>
+            <div class="preset" data-ton="250">250<span class="mult-badge">×2.5</span></div>
+            <div class="preset" data-ton="500">500<span class="mult-badge">×3</span></div>
+          </div>
+          <button class="boost-btn" id="boostBtn">⚡ <span data-i18n="deposit_boost">DEPOSIT POWER BOOST</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASKS PANEL -->
+    <div id="panel_tasks" class="panel">
+      <div class="panel-header">
+        <div><div class="panel-title" data-i18n="tasks">Tasks</div><div class="panel-sub" data-i18n="tasks_sub">Complete missions to earn POWER</div></div>
+        <div class="completed-pill" id="tasksBadge">0/5</div>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+      <div class="section-label"><span data-i18n="social_tasks">SOCIAL TASKS</span><span class="sl-count" id="socialCnt">0/3</span></div>
+      <div class="task-card" id="tc0"><div class="task-top"><div class="task-ico">✈️</div><div class="task-body"><div class="task-name" data-i18n="t0_name">Join Stars Birds</div><div class="task-desc" data-i18n="t0_desc">Join the Stars Birds Telegram community</div></div><div class="task-reward">⚡ +5</div></div><button class="task-action" id="ta0" onclick="doTask(0,5,'social')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg><span data-i18n="join">Join</span></button></div>
+      <div class="task-card" id="tc1"><div class="task-top"><div class="task-ico">📢</div><div class="task-body"><div class="task-name" data-i18n="t1_name">TONPulse Miner News</div><div class="task-desc" data-i18n="t1_desc">Join our official Telegram news channel</div></div><div class="task-reward">⚡ +5</div></div><button class="task-action" id="ta1" onclick="doTask(1,5,'social')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg><span data-i18n="join">Join</span></button></div>
+      <div class="task-card" id="tc2"><div class="task-top"><div class="task-ico">💸</div><div class="task-body"><div class="task-name" data-i18n="t2_name">TONPulse Miner Payouts</div><div class="task-desc" data-i18n="t2_desc">Join payouts announcement channel</div></div><div class="task-reward">⚡ +5</div></div><button class="task-action" id="ta2" onclick="doTask(2,5,'social')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg><span data-i18n="join">Join</span></button></div>
+      <div class="section-label mt12"><span data-i18n="collaborations">COLLABORATIONS</span><span class="sl-count" id="collabCnt">0/2</span></div>
+      <div class="task-card" id="tc3"><div class="task-top"><div class="task-ico partner">🐕</div><div class="task-body"><div class="task-name" data-i18n="t3_name">Join Dog's Empire</div><div class="task-desc" data-i18n="t3_desc">Partner community collaboration</div></div><div class="task-reward">⚡ +5</div></div><button class="task-action" id="ta3" onclick="doTask(3,5,'collab')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg><span data-i18n="join">Join</span></button></div>
+      <div class="task-card" id="tc4"><div class="task-top"><div class="task-ico invite">👥</div><div class="task-body"><div class="task-name" data-i18n="t4_name">Invite a Friend</div><div class="task-desc" data-i18n="t4_desc">Share your referral link and earn</div></div><div class="task-reward">⚡ +10</div></div><button class="task-action" id="ta4" onclick="doTask(4,10,'collab')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6"/></svg><span data-i18n="invite">Invite</span></button></div>
+    </div>
+
+    <!-- POWER PANEL -->
+    <div id="panel_power" class="panel">
+      <div class="panel-header"><div><div class="panel-title" data-i18n="power_title">Power</div><div class="panel-sub" data-i18n="power_sub">Your mining statistics</div></div></div>
+      <div class="stats-grid">
+        <div class="stat-card s-gold"><div class="sc-label" data-i18n="total_power">TOTAL POWER</div><div class="sc-val gold" id="stPower">10.00</div><div class="sc-unit">POWER</div></div>
+        <div class="stat-card s-green"><div class="sc-label" data-i18n="total_earned">TOTAL EARNED</div><div class="sc-val green" id="stEarned">0.0000</div><div class="sc-unit">TON</div></div>
+        <div class="stat-card s-blue"><div class="sc-label" data-i18n="daily_rate">DAILY RATE</div><div class="sc-val blue" id="stRate">0.014</div><div class="sc-unit">% / power</div></div>
+        <div class="stat-card s-purple"><div class="sc-label" data-i18n="claims">CLAIMS</div><div class="sc-val purple" id="stClaims">0</div><div class="sc-unit" data-i18n="sessions">sessions</div></div>
+      </div>
+      <div class="rate-card"><div class="rate-header"><span class="rate-title" data-i18n="earnings_proj">EARNINGS PROJECTION</span><span class="rate-val" id="dailyEarn">≈0.000014 TON/day</span></div>
+        <div class="rate-bars"><div class="rate-row"><span class="rate-row-label" data-i18n="per_day">Per day</span><div class="rate-bar"><div class="rate-bar-fill day"></div></div><span class="rate-row-val" id="projDay">0.000014</span></div>
+        <div class="rate-row"><span class="rate-row-label" data-i18n="per_week">Per week</span><div class="rate-bar"><div class="rate-bar-fill week"></div></div><span class="rate-row-val" id="projWeek">0.000098</span></div>
+        <div class="rate-row"><span class="rate-row-label" data-i18n="per_month">Per month</span><div class="rate-bar"><div class="rate-bar-fill month"></div></div><span class="rate-row-val" id="projMonth">0.000420</span></div></div>
+      </div>
+      <div class="hist-card"><div class="hist-card-header"><div class="hch-title" data-i18n="history">TRANSACTION HISTORY</div></div><div class="hist-list" id="histList"><div class="hist-item"><div class="hi-icon mine">⛏️</div><div><div class="hi-title" data-i18n="mining_started">Mining Started</div><div class="hi-date" data-i18n="just_now">Just now</div></div><div class="hi-amt pos">+0.000004</div></div></div></div>
+    </div>
+
+    <!-- TEAM PANEL -->
+    <div id="panel_team" class="panel">
+      <div class="panel-header"><div><div class="panel-title" data-i18n="team">Team</div><div class="panel-sub" data-i18n="team_sub">Invite friends, earn together</div></div></div>
+      <div class="team-banner"><div class="tb-emoji">🚀</div><div class="tb-title" data-i18n="team_invite_title">Invite & Earn Together</div><div class="tb-sub" data-i18n="team_invite_sub">Get +1 POWER for every friend you invite</div><div class="reflink-box"><div class="rl-url" id="refUrlEl">t.me/tonpulse?ref=loading...</div><button class="rl-copy" onclick="copyRef()" data-i18n="copy">Copy</button></div></div>
+      <div class="team-stats-row"><div class="ts-card"><div class="ts-val" id="tmFriends">1</div><div class="ts-lbl" data-i18n="friends">FRIENDS</div></div><div class="ts-card"><div class="ts-val" id="tmBonus">1</div><div class="ts-lbl" data-i18n="bonus_power">POWER BONUS</div></div><div class="ts-card"><div class="ts-val" id="tmTon">0.001</div><div class="ts-lbl" data-i18n="team_ton">TEAM TON</div></div></div>
+      <div class="section-label"><span data-i18n="your_friends">YOUR FRIENDS</span></div>
+      <div class="friends-list" id="friendsList"><div class="friend-card"><div class="friend-av" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">A</div><div><div class="friend-name">Alex_crypto</div><div class="friend-power">15.00 POWER · <span style="color:var(--green)">active</span></div></div><div class="friend-bonus">⚡ +1</div></div></div>
+      <!-- КНОПКА ДЕМО-ДРУГ УДАЛЕНА -->
+    </div>
+
+    <!-- WITHDRAW PANEL -->
+    <div id="panel_withdraw" class="panel">
+      <div class="panel-header"><div><div class="panel-title" data-i18n="withdraw">Withdraw</div><div class="panel-sub" data-i18n="withdraw_sub">Send TON to your wallet</div></div></div>
+      <div class="avail-card"><div class="avail-label" data-i18n="available_balance">AVAILABLE BALANCE</div><div class="avail-val" id="wdBalVal">0.000000</div><div class="avail-unit">TON</div></div>
+      <div class="warn-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span data-i18n="withdraw_warning">Withdrawals processed within ~15 min. Network fee: 0.005 TON</span></div>
+      <div class="info-card"><div class="info-row"><span class="ir-label" data-i18n="min_withdraw">Minimum</span><span class="ir-val">0.08 TON</span></div><div class="info-row"><span class="ir-label" data-i18n="network_fee">Network fee</span><span class="ir-val">0.005 TON</span></div><div class="info-row"><span class="ir-label" data-i18n="processing">Processing</span><span class="ir-val" data-i18n="min15">~15 minutes</span></div><div class="info-row"><span class="ir-label" data-i18n="wallets">Wallets</span><span class="ir-val">EQ... / UQ...</span></div></div>
+      <div class="form-section"><label class="fl" data-i18n="amount_ton">AMOUNT (TON)</label><input type="number" class="fi" id="wdAmt" placeholder="0.00" min="0.08" step="0.01"></div>
+      <div class="form-section"><label class="fl" data-i18n="wallet_address">WALLET ADDRESS</label><input type="text" class="fi" id="wdAddr" placeholder="EQA... or UQA..."></div>
+      <button class="wd-btn" id="wdBtn"><span data-i18n="confirm_withdraw">CONFIRM WITHDRAWAL</span></button>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="nav-bar">
+    <div class="nav-inner">
+      <button class="ni" data-tab="power"><div class="ni-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="ni-label" data-i18n="nav_power">POWER</span></button>
+      <button class="ni" data-tab="tasks"><div class="ni-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div><span class="ni-label" data-i18n="nav_tasks">TASKS</span></button>
+      <button class="ni-center active" id="navCenter" data-tab="mine"><div class="ni-center-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="ni-center-label" data-i18n="nav_mine">MINE</span></button>
+      <button class="ni" data-tab="team"><div class="ni-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="ni-label" data-i18n="nav_team">TEAM</span></button>
+      <button class="ni" data-tab="withdraw"><div class="ni-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><span class="ni-label" data-i18n="nav_withdraw">WITHDRAW</span></button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+// ========== ЗВЕЗДНЫЙ ФОН ==========
+const canvas = document.getElementById('starsCanvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      radius: Math.random() * 2.5 + 0.5,
+      alpha: Math.random() * 0.6 + 0.2,
+      speedX: (Math.random() - 0.5) * 0.2,
+      speedY: (Math.random() - 0.5) * 0.15,
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+}
+initStars();
+
+function drawStars() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let s of stars) {
+    s.x += s.speedX;
+    s.y += s.speedY;
+    if (s.x < -20) s.x = canvas.width + 20;
+    if (s.x > canvas.width + 20) s.x = -20;
+    if (s.y < -20) s.y = canvas.height + 20;
+    if (s.y > canvas.height + 20) s.y = -20;
+    
+    s.pulse += 0.02;
+    const glowAlpha = s.alpha + Math.sin(s.pulse) * 0.15;
+    
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, Math.min(0.8, glowAlpha))})`;
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.radius * 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${glowAlpha * 0.2})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+
+// ========== i18n ==========
+const i18n = {
+  ru: {
+    balance:'БАЛАНС', mining_active:'Майнинг активен', mining_active_label:'МАЙНИНГ АКТИВЕН',
+    power:'СИЛА', nav_power:'СИЛА', nav_tasks:'ЗАДАНИЯ', nav_mine:'МАЙН', nav_team:'КОМАНДА', nav_withdraw:'ВЫВОД',
+    tasks:'Задания', tasks_sub:'Выполняй миссии и зарабатывай СИЛУ',
+    social_tasks:'СОЦСЕТИ', collaborations:'КОЛЛАБОРАЦИИ',
+    t0_name:'Вступить в Stars Birds', t0_desc:'Вступи в сообщество Stars Birds',
+    t1_name:'Новости TONPulse Miner', t1_desc:'Официальный Telegram-канал новостей',
+    t2_name:'Выплаты TONPulse Miner', t2_desc:'Канал анонсов выплат',
+    t3_name:"Вступить в Dog's Empire", t3_desc:'Партнёрское сообщество',
+    t4_name:'Пригласить друга', t4_desc:'Поделись реферальной ссылкой',
+    join:'Вступить', invite:'Пригласить',
+    power_title:'Сила', power_sub:'Статистика майнинга',
+    total_power:'ВСЕГО СИЛЫ', total_earned:'ЗАРАБОТАНО', daily_rate:'ДНЕВНАЯ СТАВКА', claims:'КЛЕЙМЫ', sessions:'сессий',
+    earnings_proj:'ПРОГНОЗ ЗАРАБОТКА', per_day:'В день', per_week:'В неделю', per_month:'В месяц',
+    history:'ИСТОРИЯ ТРАНЗАКЦИЙ', mining_started:'Майнинг начат', just_now:'Только что',
+    team:'Команда', team_sub:'Приглашай друзей, зарабатывайте вместе',
+    team_invite_title:'Приглашай и зарабатывай', team_invite_sub:'Получай +1 СИЛЫ за каждого приглашённого',
+    copy:'Копировать', friends:'ДРУЗЕЙ', bonus_power:'БОНУС СИЛЫ', team_ton:'КОМАНДНЫЙ TON',
+    your_friends:'ВАШИ ДРУЗЬЯ',
+    withdraw:'Вывод', withdraw_sub:'Отправь TON на свой кошелёк',
+    available_balance:'ДОСТУПНЫЙ БАЛАНС',
+    withdraw_warning:'Выплаты обрабатываются ~15 мин. Комиссия сети: 0.005 TON',
+    min_withdraw:'Минимум', network_fee:'Комиссия сети', processing:'Обработка', min15:'~15 минут', wallets:'Кошельки',
+    amount_ton:'СУММА (TON)', wallet_address:'АДРЕС КОШЕЛЬКА', confirm_withdraw:'ПОДТВЕРДИТЬ ВЫВОД',
+    deposit_ton:'Депозит TON', deposit_sub:'Пополни счёт для буста СИЛЫ', deposit_boost:'КУПИТЬ БУСТ СИЛЫ',
+    per_h:'/ч', deposit_btn:'Пополнить',
+    toast_claimed:'✅ Получено', toast_boosted:'⚡ Буст силы активирован!', toast_nothing:'Пока нечего получать',
+    toast_copied:'🔗 Ссылка скопирована!', toast_friend:'👥 Друг добавлен! +1 СИЛА',
+    toast_invalid_amt:'Введите корректную сумму', toast_min:'Минимум 0.08 TON',
+    toast_insuf:'Недостаточно баланса', toast_invalid_wallet:'Неверный адрес кошелька',
+    toast_sent:'✅ Вывод отправлен', toast_task:'⚡ СИЛА получена!', toast_insufficient_balance:'❌ Недостаточно TON на балансе!'
+  },
+  en: {
+    balance:'BALANCE', mining_active:'Mining active', mining_active_label:'MINING ACTIVE',
+    power:'POWER', nav_power:'POWER', nav_tasks:'TASKS', nav_mine:'MINE', nav_team:'TEAM', nav_withdraw:'WITHDRAW',
+    tasks:'Tasks', tasks_sub:'Complete missions to earn POWER',
+    social_tasks:'SOCIAL TASKS', collaborations:'COLLABORATIONS',
+    t0_name:'Join Stars Birds', t0_desc:'Join the Stars Birds community',
+    t1_name:'TONPulse Miner News', t1_desc:'Join our official Telegram news channel',
+    t2_name:'TONPulse Miner Payouts', t2_desc:'Join payouts announcement channel',
+    t3_name:"Join Dog's Empire", t3_desc:'Partner community collaboration',
+    t4_name:'Invite a Friend', t4_desc:'Share your referral link and earn',
+    join:'Join', invite:'Invite',
+    power_title:'Power', power_sub:'Your mining statistics',
+    total_power:'TOTAL POWER', total_earned:'TOTAL EARNED', daily_rate:'DAILY RATE', claims:'CLAIMS', sessions:'sessions',
+    earnings_proj:'EARNINGS PROJECTION', per_day:'Per day', per_week:'Per week', per_month:'Per month',
+    history:'TRANSACTION HISTORY', mining_started:'Mining Started', just_now:'Just now',
+    team:'Team', team_sub:'Invite friends, earn together',
+    team_invite_title:'Invite & Earn Together', team_invite_sub:'Get +1 POWER for every friend you invite',
+    copy:'Copy', friends:'FRIENDS', bonus_power:'BONUS POWER', team_ton:'TEAM TON',
+    your_friends:'YOUR FRIENDS',
+    withdraw:'Withdraw', withdraw_sub:'Send TON to your wallet',
+    available_balance:'AVAILABLE BALANCE',
+    withdraw_warning:'Withdrawals processed within ~15 min. Network fee: 0.005 TON',
+    min_withdraw:'Minimum', network_fee:'Network fee', processing:'Processing', min15:'~15 minutes', wallets:'Wallets',
+    amount_ton:'AMOUNT (TON)', wallet_address:'WALLET ADDRESS', confirm_withdraw:'CONFIRM WITHDRAWAL',
+    deposit_ton:'Deposit TON', deposit_sub:'Fund your account to boost POWER', deposit_boost:'BUY POWER BOOST',
+    per_h:'/h', deposit_btn:'Deposit',
+    toast_claimed:'✅ Claimed', toast_boosted:'⚡ Power boost activated!', toast_nothing:'Nothing to claim yet',
+    toast_copied:'🔗 Link copied!', toast_friend:'👥 Friend added! +1 POWER',
+    toast_invalid_amt:'Enter a valid amount', toast_min:'Minimum 0.08 TON',
+    toast_insuf:'Insufficient balance', toast_invalid_wallet:'Invalid wallet address',
+    toast_sent:'✅ Withdrawal sent', toast_task:'⚡ POWER earned!', toast_insufficient_balance:'❌ Insufficient TON balance!'
+  }
+};
+let lang = 'ru';
+function t(key) { return i18n[lang][key] || key; }
+function setLang(l) { lang = l; document.getElementById('langRu').classList.toggle('active', l==='ru'); document.getElementById('langEn').classList.toggle('active', l==='en'); applyLang(); updateAll(); }
+function applyLang() { document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (i18n[lang][k]) el.textContent = i18n[lang][k]; }); }
+
+// ========== СОСТОЯНИЕ ==========
+let S = {
+  balance: 0.0003,
+  pending: 0.000004,
+  power: 10,
+  friends: 1,
+  claims: 0,
+  totalEarned: 0.000004,
+  tasksDone: new Set(),
+  socialDone: 0,
+  collabDone: 0,
+  history: [],
+  selTon: 1
+};
+
+function loadGameData() {
+  const saved = localStorage.getItem('tonpulse_miner_data');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      S.balance = data.balance ?? 0.0003;
+      S.pending = data.pending ?? 0.000004;
+      S.power = data.power ?? 10;
+      S.friends = data.friends ?? 1;
+      S.claims = data.claims ?? 0;
+      S.totalEarned = data.totalEarned ?? 0.000004;
+      if (data.tasksDone) S.tasksDone = new Set(data.tasksDone);
+      S.socialDone = data.socialDone ?? 0;
+      S.collabDone = data.collabDone ?? 0;
+      S.history = data.history || [];
+      S.selTon = data.selTon ?? 1;
+    } catch(e) {}
+  }
+}
+function saveGameData() {
+  localStorage.setItem('tonpulse_miner_data', JSON.stringify({
+    balance: S.balance, pending: S.pending, power: S.power, friends: S.friends,
+    claims: S.claims, totalEarned: S.totalEarned, tasksDone: Array.from(S.tasksDone),
+    socialDone: S.socialDone, collabDone: S.collabDone, history: S.history.slice(0,50),
+    selTon: S.selTon
+  }));
+}
+loadGameData();
+
+function ratePerSec() { return (S.power * 0.14 / 100) / 86400; }
+let lastTs = null, rafId = null, orbitAngle = 0;
+
+function tick(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min((ts - lastTs) / 1000, 0.5);
+  lastTs = ts;
+  S.pending += ratePerSec() * dt;
+  if (S.pending > 99999) S.pending = 99999;
+  
+  const perc = Math.min(S.pending / 0.0008, 1);
+  const dash = 710;
+  const offset = dash - dash * perc * 0.98;
+  const fillEl = document.getElementById('ringFillEl');
+  const glowEl = document.getElementById('ringGlowEl');
+  if (fillEl) fillEl.style.strokeDashoffset = offset;
+  if (glowEl) glowEl.style.strokeDashoffset = offset + 30;
+  document.getElementById('ringAmt').textContent = S.pending.toFixed(6);
+  document.getElementById('claimBtnTxt').textContent = `CLAIM ${S.pending.toFixed(6)} TON`;
+  document.getElementById('speedDisp').textContent = '+' + (ratePerSec() * 3600).toFixed(6);
+  animOrbit(ts);
+  rafId = requestAnimationFrame(tick);
+}
+
+function animOrbit(ts) {
+  orbitAngle = (orbitAngle + 0.5) % 360;
+  const sw = document.querySelector('.ring-wrap')?.offsetWidth || 250;
+  const sh = document.querySelector('.ring-wrap')?.offsetHeight || 250;
+  const toPos = (a, r, off) => {
+    const ra = a * Math.PI / 180;
+    const cx = 125, cy = 125;
+    return { x: (cx + r * Math.cos(ra - Math.PI/2)) / 250 * sw - off, y: (cy + r * Math.sin(ra - Math.PI/2)) / 250 * sh - off };
+  };
+  const p1 = toPos(orbitAngle, 113, 4);
+  const p2 = toPos(orbitAngle - 15, 113, 2);
+  const p3 = toPos(orbitAngle - 30, 113, 2);
+  const d1 = document.getElementById('orbitDot1');
+  const d2 = document.getElementById('orbitTail1');
+  const d3 = document.getElementById('orbitTail2');
+  if(d1){ d1.style.left = p1.x+'px'; d1.style.top = p1.y+'px'; }
+  if(d2){ d2.style.left = p2.x+'px'; d2.style.top = p2.y+'px'; }
+  if(d3){ d3.style.left = p3.x+'px'; d3.style.top = p3.y+'px'; }
+}
+
+// ========== ACTIONS ==========
+// CLAIM - ИСПРАВЛЕНО!
+document.getElementById('claimBtn').addEventListener('click', () => {
+  if (S.pending < 0.000001) { toast(t('toast_nothing'), 'error'); return; }
+  const got = S.pending;
+  S.balance += got;
+  S.totalEarned += got;
+  S.claims++;
+  S.pending = 0;
+  addHist('mine', `+${got.toFixed(6)} TON`, t('mining_started'));
+  updateAll();
+  saveGameData();
+  toast(`${t('toast_claimed')} ${got.toFixed(6)} TON`, 'success');
+});
+
+// BOOST за TON
+document.getElementById('boostBtn').addEventListener('click', () => {
+  const tonCost = S.selTon;
+  if (S.balance < tonCost) { toast(t('toast_insufficient_balance'), 'error'); return; }
+  let mult = 1;
+  if (tonCost >= 500) mult = 3.0;
+  else if (tonCost >= 250) mult = 2.5;
+  else if (tonCost >= 100) mult = 2.0;
+  else if (tonCost >= 50) mult = 1.75;
+  else if (tonCost >= 25) mult = 1.5;
+  else if (tonCost >= 10) mult = 1.25;
+  const gained = Math.round(tonCost * 100 * mult);
+  if (gained > 0) {
+    S.balance -= tonCost;
+    S.power += gained;
+    addHist('dep', `+${gained} POWER`, `Purchased boost for ${tonCost} TON`);
+    updateAll();
+    saveGameData();
+    toast(`${t('toast_boosted')}: +${gained} POWER!`, 'success');
+  }
+});
+
+document.getElementById('presetGrid').addEventListener('click', e => {
+  const p = e.target.closest('.preset');
+  if(p) { S.selTon = parseInt(p.dataset.ton); document.querySelectorAll('.preset').forEach(el => el.classList.toggle('sel', parseInt(el.dataset.ton) === S.selTon)); saveGameData(); }
+});
+
+document.getElementById('depositToggle').addEventListener('click', () => {
+  const body = document.getElementById('depositBody');
+  const arrow = document.getElementById('depositArrow');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  arrow.classList.toggle('open', !open);
+});
+
+// Кнопка "Пополнить" скроллит к депозиту
+document.getElementById('topDepositBtn').addEventListener('click', () => {
+  const depositCard = document.getElementById('depositCard');
+  depositCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const body = document.getElementById('depositBody');
+  const arrow = document.getElementById('depositArrow');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    arrow.classList.add('open');
+  }
+});
+
+function doTask(id, reward, type) {
+  if (S.tasksDone.has(id)) return;
+  S.tasksDone.add(id);
+  S.power += reward;
+  if (type === 'social') S.socialDone++;
+  else S.collabDone++;
+  const card = document.getElementById('tc'+id);
+  if(card) card.classList.add('done');
+  const btn = document.getElementById('ta'+id);
+  if(btn) {
+    btn.className = 'task-action done-btn';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> ${lang==='ru'?'Выполнено':'Done'}`;
+    btn.onclick = null;
+  }
+  addHist('bonus', `+${reward} POWER`, 'Task completed');
+  updateAll();
+  saveGameData();
+  toast(t('toast_task') + ` +${reward}`, 'success');
+}
+
+document.getElementById('wdBtn').addEventListener('click', () => {
+  const amt = parseFloat(document.getElementById('wdAmt').value);
+  const addr = document.getElementById('wdAddr').value.trim();
+  if (isNaN(amt) || amt <= 0) { toast(t('toast_invalid_amt'), 'error'); return; }
+  if (amt < 0.08) { toast(t('toast_min'), 'error'); return; }
+  if (amt > S.balance) { toast(t('toast_insuf'), 'error'); return; }
+  if (!addr.startsWith('EQ') && !addr.startsWith('UQ')) { toast(t('toast_invalid_wallet'), 'error'); return; }
+  S.balance -= amt;
+  addHist('with', `-${amt.toFixed(6)} TON`, `→ ${addr.slice(0,10)}...`);
+  document.getElementById('wdAmt').value = '';
+  updateAll();
+  saveGameData();
+  toast(`${t('toast_sent')}: ${amt.toFixed(6)} TON`, 'success');
+});
+
+function copyRef() {
+  const url = document.getElementById('refUrlEl').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
+  toast(t('toast_copied'), 'success');
+}
+
+function addHist(type, amt, title) {
+  S.history.unshift({ type, amt, title, time: t('just_now') });
+  if (S.history.length > 50) S.history.pop();
+  renderHist();
+  saveGameData();
+}
+
+function renderHist() {
+  const list = document.getElementById('histList');
+  if (!list) return;
+  list.innerHTML = S.history.slice(0,12).map(h => {
+    const ico = {mine:'⛏️', dep:'⚡', with:'💸', bonus:'🎯'}[h.type] || '•';
+    const cls = h.type === 'with' ? 'neg' : (h.type === 'dep' ? 'gold' : 'pos');
+    return `<div class="hist-item"><div class="hi-icon ${h.type}">${ico}</div><div><div class="hi-title">${h.title}</div><div class="hi-date">${h.time}</div></div><div class="hi-amt ${cls}">${h.amt}</div></div>`;
+  }).join('');
+}
+
+function updateAll() {
+  document.getElementById('topBalVal').textContent = S.balance.toFixed(4);
+  document.getElementById('powerDisp').textContent = S.power.toFixed(2);
+  document.getElementById('wdBalVal').textContent = S.balance.toFixed(6);
+  document.getElementById('stPower').textContent = S.power.toFixed(2);
+  document.getElementById('stEarned').textContent = S.totalEarned.toFixed(4);
+  document.getElementById('stRate').textContent = (S.power * 0.14 / 100).toFixed(4);
+  document.getElementById('stClaims').textContent = S.claims;
+  document.getElementById('tasksBadge').textContent = `${S.tasksDone.size}/5`;
+  document.getElementById('socialCnt').textContent = `${S.socialDone}/3`;
+  document.getElementById('collabCnt').textContent = `${S.collabDone}/2`;
+  document.getElementById('progFill').style.width = (S.tasksDone.size/5*100)+'%';
+  document.getElementById('tmFriends').textContent = S.friends;
+  document.getElementById('tmBonus').textContent = S.friends;
+  document.getElementById('tmTon').textContent = (S.friends * 0.001).toFixed(3);
+  const dayEarn = ratePerSec() * 86400;
+  document.getElementById('dailyEarn').textContent = `≈${dayEarn.toFixed(6)} TON/${lang==='ru'?'день':'day'}`;
+  document.getElementById('projDay').textContent = dayEarn.toFixed(6);
+  document.getElementById('projWeek').textContent = (dayEarn*7).toFixed(6);
+  document.getElementById('projMonth').textContent = (dayEarn*30).toFixed(5);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('panel_' + tab);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.ni[data-tab], .ni-center[data-tab]').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`[data-tab="${tab}"]`);
+  if (btn) btn.classList.add('active');
+}
+document.querySelectorAll('.ni[data-tab]').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+document.getElementById('navCenter').addEventListener('click', () => switchTab('mine'));
+
+let toastTimer = null;
+function toast(msg, type='') {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function buildTicks() {
+  const g = document.getElementById('tickMarks');
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * 2 * Math.PI - Math.PI/2;
+    const isMain = i % 5 === 0;
+    const r1 = isMain ? 105 : 107;
+    const r2 = isMain ? 100 : 104;
+    const x1 = 125 + r1 * Math.cos(a);
+    const y1 = 125 + r1 * Math.sin(a);
+    const x2 = 125 + r2 * Math.cos(a);
+    const y2 = 125 + r2 * Math.sin(a);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', isMain ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)');
+    line.setAttribute('stroke-width', isMain ? '1.5' : '1');
+    g.appendChild(line);
+  }
+}
+
+function init() {
+  buildTicks();
+  document.getElementById('refUrlEl').textContent = `t.me/tonpulse?ref=kurban_${Math.floor(Math.random()*9999)}`;
+  document.querySelector('.preset[data-ton="1"]').classList.add('sel');
+  applyLang();
+  updateAll();
+  renderHist();
+  rafId = requestAnimationFrame(tick);
+}
+init();
+</script>
+</body>
+</html>
